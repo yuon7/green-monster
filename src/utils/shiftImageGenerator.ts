@@ -1,5 +1,6 @@
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 import { ColumnLayout } from '@/types';
+import { alignDuplicateNames, assignHighlightColors } from '@/utils/shiftLogic';
 
 /**
  * カラー設定（カスタマイズ可能）
@@ -161,7 +162,31 @@ export async function generateShiftImage(
   // 3. データ行
   ctx.font = '14px "Japanese", sans-serif';
 
-  layouts.forEach((layout) => {
+  // --- ロジック統合: 名寄せとハイライト ---
+  
+  // 1. レイアウトから参加者マトリックス（2-5枠）を抽出
+  // layout.columns が null/undefined の場合は空文字で埋める
+  let participantMatrix: string[][] = layouts.map(l => {
+    // 確実に4列にする
+    const cols = l.columns || [];
+    return Array.from({ length: 4 }, (_, i) => (cols[i] || ""));
+  });
+
+  // 2. 名寄せ（整列）を実行
+  const alignedMatrix = alignDuplicateNames(participantMatrix);
+
+  // レイアウトオブジェクト内のカラムを整列後のものに更新
+  layouts.forEach((layout, i) => {
+    if (!layout.isEmpty) {
+        layout.columns = alignedMatrix[i];
+    }
+  });
+
+  // 3. ハイライト色を計算
+  const emptyRows = layouts.map(l => l.isEmpty);
+  const colorMatrix = assignHighlightColors(alignedMatrix, undefined, emptyRows);
+
+  layouts.forEach((layout, index) => {
     currentX = 0;
 
     if (layout.isEmpty) {
@@ -222,8 +247,13 @@ export async function generateShiftImage(
       currentX += cellWidth;
 
       // 2-5枠
-      layout.columns.forEach((participant) => {
-        ctx.fillStyle = ShiftColors.dataCellBg;
+      layout.columns.forEach((participant, colIndex) => {
+        // ハイライト色があれば適用、なければデフォルト背景
+        const highlightColor = colorMatrix[index] && colorMatrix[index][colIndex] 
+                               ? colorMatrix[index][colIndex] 
+                               : ShiftColors.dataCellBg;
+
+        ctx.fillStyle = highlightColor;
         ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
         
         if (participant) {
