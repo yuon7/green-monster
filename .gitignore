@@ -1,0 +1,30 @@
+# 環境変数
+.env
+
+# 依存関係
+node_modules/
+
+# ビルド出力
+dist/
+
+# ログ
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE（チーム開発のため.vscodeは含める）
+.idea/
+*.swp
+*.swo
+*~
+
+# TypeScript increment build
+*.tsbuildinfo
+
+# Test coverage
+coverage/
