@@ -5,10 +5,31 @@ import path from 'path';
 // フォント登録 (日本語対応)
 // フォント登録 (日本語対応)
 try {
-  const fontPath = path.join(__dirname, '../assets/fonts/NotoSansJP-Regular.otf');
-  GlobalFonts.registerFromPath(fontPath, 'NotoSansJP');
+  // 複数のパス候補を試す (ローカル開発環境 vs ビルド後環境)
+  const fontName = 'NotoSansJP-Regular.otf';
+  const candidates = [
+    path.join(__dirname, '../assets/fonts', fontName),        // dist/utils -> dist/assets/fonts
+    path.join(__dirname, '../../assets/fonts', fontName),     // dist/lib/.. -> dist/assets/fonts (fallback)
+    path.join(process.cwd(), 'dist/assets/fonts', fontName),  // Absolute from CWD
+    path.join(process.cwd(), 'src/assets/fonts', fontName),   // Local dev
+  ];
+
+  let registered = false;
+  for (const fontPath of candidates) {
+    if (require('fs').existsSync(fontPath)) {
+      console.log(`[Font] Attempting to register font from: ${fontPath}`);
+      GlobalFonts.registerFromPath(fontPath, 'NotoSansJP');
+      registered = true;
+      console.log(`[Font] Successfully registered NotoSansJP`);
+      break;
+    }
+  }
+
+  if (!registered) {
+    console.error(`[Font] FAILED to find font file. Searched in:`, candidates);
+  }
 } catch (e) {
-  console.warn('Font registration failed:', e);
+  console.error('[Font] Font registration CRITICAL failure:', e);
 }
 
 // 色定義
