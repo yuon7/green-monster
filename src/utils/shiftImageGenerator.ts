@@ -31,6 +31,9 @@ try {
       
       if (registeredCount > 0) {
         console.log(`[Font] Successfully registered ${registeredCount} fonts from ${dirPath}`);
+        // 登録されているフォントファミリー名を全てログに出力して確認
+        const families = GlobalFonts.families;
+        console.log('[Font] Available Font Families:', JSON.stringify(families.map(f => f.family)));
         break; // 1つのディレクトリから読み込めればOK
       }
     }
