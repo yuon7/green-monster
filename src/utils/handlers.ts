@@ -9,7 +9,12 @@ import { config } from '@/config';
  */
 export async function loadCommands(client: ExtendedClient): Promise<void> {
   const commandsPath = join(__dirname, '../commands');
-  const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+  const commandFiles = readdirSync(commandsPath).filter(
+    file =>
+      (file.endsWith('.ts') || file.endsWith('.js')) &&
+      !file.endsWith('.d.ts') &&
+      !file.endsWith('.map')
+  );
 
   console.log(`📦 ${commandFiles.length}個のコマンドを読み込んでいます...`);
 
@@ -37,7 +42,12 @@ export async function loadCommands(client: ExtendedClient): Promise<void> {
  */
 export async function loadEvents(client: ExtendedClient): Promise<void> {
   const eventsPath = join(__dirname, '../events');
-  const eventFiles = readdirSync(eventsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+  const eventFiles = readdirSync(eventsPath).filter(
+    file =>
+      (file.endsWith('.ts') || file.endsWith('.js')) &&
+      !file.endsWith('.d.ts') &&
+      !file.endsWith('.map')
+  );
 
   console.log(`📦 ${eventFiles.length}個のイベントを読み込んでいます...`);
 
