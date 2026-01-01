@@ -6,6 +6,8 @@ import { loadCommands, loadEvents } from '@/utils/handlers';
 /**
  * Botのメインエントリーポイント
  */
+import express from 'express';
+
 async function main() {
   console.log('🤖 Discord Bot を起動しています...\n');
 
@@ -37,6 +39,18 @@ async function main() {
   process.on('uncaughtException', error => {
     console.error('🚨 キャッチされていない例外:', error);
     process.exit(1);
+  });
+
+  // Railway Health Check Server
+  const app = express();
+  const port = process.env.PORT || 3000;
+
+  app.get('/', (req, res) => {
+    res.send('Reaction Bot is running! 🤖');
+  });
+
+  app.listen(port, () => {
+    console.log(`🌍 Health Check Server is running on port ${port}`);
   });
 }
 
