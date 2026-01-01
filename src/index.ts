@@ -19,8 +19,8 @@ async function main() {
     res.send('Reaction Bot is running! 🤖');
   });
 
-  app.listen(port, () => {
-    console.log(`🌍 Health Check Server is running on port ${port}`);
+  app.listen(Number(port), '0.0.0.0', () => {
+    console.log(`🌍 Health Check Server is running on port ${port} (0.0.0.0)`);
   });
 
   // Clientの作成
