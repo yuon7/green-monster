@@ -1,2 +1,6 @@
 [phases.setup]
-nixPkgs = ["nodejs-20_x","fontconfig","noto-fonts-cjk-sans"]
+nixPkgs = [
+    "nodejs_20",           # ← ここを修正（ハイフンではなくアンダースコア）
+    "fontconfig",
+    "noto-fonts-cjk-sans"
+]
