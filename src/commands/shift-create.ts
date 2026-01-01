@@ -8,7 +8,8 @@ import {
 import { Command, TimeSlot } from '@/types';
 import { extractDateFromChannelName, parseTimeRange } from '@/utils/dateUtils';
 import { arrangeColumns, fillEmptySlots } from '@/utils/shiftProcessor';
-import { generateShiftImage } from '@/utils/shiftImageGenerator';
+import { generateReactionShiftImage } from '@/utils/reactionShiftImageGenerator';
+import { assignHighlightColors } from '@/utils/shiftLogic';
 
 /**
  * /shift-create コマンド
@@ -133,9 +134,25 @@ const shiftCreate: Command = {
       // 空き時間を埋める
       layouts = fillEmptySlots(layouts);
 
+      // ハイライト色の計算 (飛び石・ギャップ検出)
+      // データ形式: [runner, encore, sup1, sup2, sup3]
+      const highlightData = layouts.map(layout => [
+        layout.runner,
+        layout.encore,
+        layout.supports[0],
+        layout.supports[1],
+        layout.supports[2]
+      ]);
+      
+      const emptyRows = layouts.map(layout => layout.isEmpty || false);
+
+      // assignHighlightColors(values, targetCols, emptyRows)
+      // targetCols: 0(Runner), 1(Encore), 2,3,4(Supports) -> All
+      const highlightColors = assignHighlightColors(highlightData, undefined, emptyRows);
+
       // 画像を生成
       await interaction.editReply('画像を生成中...');
-      const imageBuffer = await generateShiftImage(date, layouts);
+      const imageBuffer = await generateReactionShiftImage(date, layouts, highlightColors);
 
       // 画像を送信
       const attachment = new AttachmentBuilder(imageBuffer, {

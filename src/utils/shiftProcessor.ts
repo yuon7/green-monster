@@ -49,7 +49,16 @@ export function arrangeColumns(slots: TimeSlot[]): ColumnLayout[] {
 
         // 前の時間帯をチェック
         for (let i = slotIndex - 1; i >= 0; i--) {
-          if (layouts[i] && layouts[i].columns[col] === participant) {
+          const prevLayout = layouts[i];
+          if (!prevLayout) break;
+
+          // 旧: prevLayout.columns[col] === participant
+          // 新: col=0 -> encore, col=1 -> supports[0], col=2 -> supports[1], col=3 -> supports[2]
+          let prevParticipant: string | null = null;
+          if (col === 0) prevParticipant = prevLayout.encore;
+          else prevParticipant = prevLayout.supports[col - 1];
+
+          if (prevParticipant === participant) {
             continuity++;
           } else {
             break;
@@ -57,7 +66,6 @@ export function arrangeColumns(slots: TimeSlot[]): ColumnLayout[] {
         }
 
         // 後の時間帯をチェック（暫定的に）
-        // ※実際には後の時間帯はまだ配置されていないので、参加予定かだけチェック
         if (participatingSlots.includes(slotIndex + 1)) {
           continuity += 0.5; // ボーナス
         }
@@ -80,10 +88,13 @@ export function arrangeColumns(slots: TimeSlot[]): ColumnLayout[] {
       }
     });
 
+    // ColumnLayout型に合わせて変換 (encore + 3 supports)
     layouts.push({
       time: slot.time,
       runner: slot.runner,
-      columns,
+      encore: columns[0],
+      supports: [columns[1], columns[2], columns[3]],
+      standby: null,
       isEmpty: false,
     });
   });
@@ -142,7 +153,9 @@ export function fillEmptySlots(layouts: ColumnLayout[]): ColumnLayout[] {
       result.push({
         time: timeKey,
         runner,
-        columns: [null, null, null, null],
+        encore: null,
+        supports: [null, null, null],
+        standby: null,
         isEmpty: true,
       });
     }

@@ -1,286 +1,195 @@
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { createCanvas, GlobalFonts, CanvasRenderingContext2D } from '@napi-rs/canvas';
 import { ColumnLayout } from '@/types';
-import { alignDuplicateNames, assignHighlightColors } from '@/utils/shiftLogic';
+import path from 'path';
 
-/**
- * カラー設定（カスタマイズ可能）
- */
-export const ShiftColors = {
-  // 背景色
-  background: '#ffffff',
+// フォント登録 (日本語対応)
+try {
+  GlobalFonts.registerFromPath('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', 'NotoSansCJK');
+} catch (e) {
+  console.warn('Font registration failed:', e);
+}
+
+// 色定義
+const COLORS = {
+  headerBg: '#FFCCBC', // 1枠
+  headerTimeBg: '#FFDAB9', // 時間
+  headerEncoreBg: '#FFFACD', // アンコール
+  headerSupportBg: '#FFFFFF', // 2-5枠 (順不同)
+  border: '#000000',
+  text: '#000000',
   
-  // 日付ヘッダー
-  dateHeaderBg: '#ffffffff',      // 日付ヘッダー背景
-  dateHeaderText: '#000000ff',    // 日付ヘッダーテキスト
-  
-  // カラムヘッダー（各カラムごとに設定可能）
-  timeLeftHeaderBg: '#ffd5b8ff',    // 時間（左）カラムの背景
-  slot1HeaderBg: '#ff9494ff',       // 1枠カラムの背景
-  slots2to5HeaderBg: '#ffffffff',   // 2-5枠カラムの背景
-  timeRightHeaderBg: '#ffd5b8ff',   // 時間（右）カラムの背景
-  columnHeaderText: '#000000ff',    // カラムヘッダーテキスト
-  
-  // データセル
-  dataCellBg: '#ffffff',        // 通常のデータセル背景
-  dataCellText: '#000000',      // 通常のデータセルテキスト
-  
-  // 空き時間
-  emptySlotBg: '#d9d9d9',       // 空き時間の背景（灰色）
-  
-  // 枠線
-  border: '#000000',            // 枠線の色
-  borderThick: '#000000',       // 外枠の色
+  // セル背景
+  cellRunner: '#FFCCBC', 
+  cellEncore: '#E0FFFF', 
+  cellSupport: '#FFFFFF',
+  cellStandby: '#F0F8FF',
+  cellTime: '#FFFFFF',
 };
 
-/**
- * カラムヘッダーのテキスト（カスタマイズ可能）
- */
-export const ShiftHeaders = {
-  timeLeft: '時間',
-  slot1: '1枠',
-  slots2to5: '2-5枠 順不同',
-  timeRight: '時間',
+const CONFIG = {
+  width: 1200, 
+  rowHeight: 40,
+  headerHeight: 60,
+  fontSize: 20,
+  fontFamily: 'NotoSansCJK, sans-serif', // フォント優先順位
 };
 
-/**
- * シフト表の画像を生成
- */
+// カラム幅調整
+const ADJUSTED_COL_WIDTHS = [
+  80,  // Time
+  160, // Runner
+  160, // Encore
+  160, // Sup1
+  160, // Sup2
+  160, // Sup3
+  80,  // Time
+  160  // Standby
+];
+
 export async function generateShiftImage(
-  date: string,
+  title: string,
   layouts: ColumnLayout[]
 ): Promise<Buffer> {
-  // 日本語フォントを登録（WSL/Linux環境）
-  try {
-    // Noto Sans CJK JP を優先的に登録
-    const fontPaths = [
-      '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-      '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-      '/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf',
-      '/usr/share/fonts/truetype/fonts-japanese-gothic.ttf',
-      '/usr/share/fonts/truetype/takao-gothic/TakaoPGothic.ttf',
-      '/usr/share/fonts/opentype/ipaexfont-gothic/ipaexg.ttf',
-    ];
+  const width = 1200;
+  const height = CONFIG.headerHeight + (layouts.length * CONFIG.rowHeight) + 50;
 
-    let fontRegistered = false;
-    for (const fontPath of fontPaths) {
-      try {
-        GlobalFonts.registerFromPath(fontPath, 'Japanese');
-        console.log(`日本語フォントを登録: ${fontPath}`);
-        fontRegistered = true;
-        break;
-      } catch (e) {
-        // フォントが見つからない場合は次を試す
-        continue;
-      }
-    }
-
-    if (!fontRegistered) {
-      console.warn('日本語フォントが見つかりませんでした。デフォルトフォントを使用します。');
-    }
-  } catch (error) {
-    console.error('フォント登録エラー:', error);
-  }
-
-  // サイズ設定
-  const cellWidth = 100;
-  const cellHeight = 35;
-  const headerHeight = 40;
-  const dateHeaderHeight = 40;
-
-  const cols = 7; // 時間 | 1枠 | 2-5枠(4列) | 時間
-  const canvasWidth = cellWidth * cols;
-  const canvasHeight = dateHeaderHeight + headerHeight + layouts.length * cellHeight;
-
-  // Canvasを作成
-  const canvas = createCanvas(canvasWidth, canvasHeight);
+  const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // 背景を白で塗りつぶし
-  ctx.fillStyle = ShiftColors.background;
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  // 背景白
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, width, height);
 
-  // フォント設定（日本語対応）
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.font = `bold 24px ${CONFIG.fontFamily}`;
+  ctx.fillStyle = COLORS.text;
 
-  let currentY = 0;
+  // タイトル描画
+  ctx.fillText(title, width / 2, 30);
 
-  // 1. 日付ヘッダー（全列結合）
-  ctx.fillStyle = ShiftColors.dateHeaderBg;
-  ctx.fillRect(0, currentY, canvasWidth, dateHeaderHeight);
-  ctx.strokeStyle = ShiftColors.border;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0, currentY, canvasWidth, dateHeaderHeight);
+  // テーブル開始位置
+  const startY = 50;
+  let currentY = startY;
 
-  ctx.fillStyle = ShiftColors.dateHeaderText;
-  ctx.font = 'bold 20px "Japanese", sans-serif';
-  ctx.fillText(date, canvasWidth / 2, currentY + dateHeaderHeight / 2);
-
-  currentY += dateHeaderHeight;
-
-  // 2. カラムヘッダー
-  ctx.font = 'bold 14px "Japanese", sans-serif';
-  ctx.fillStyle = ShiftColors.columnHeaderText;
-  ctx.strokeStyle = ShiftColors.border;
-
-  let currentX = 0;
-
-  // 時間（左）
-  ctx.fillStyle = ShiftColors.timeLeftHeaderBg;
-  ctx.fillRect(currentX, currentY, cellWidth, headerHeight);
-  ctx.strokeRect(currentX, currentY, cellWidth, headerHeight);
-  ctx.fillStyle = ShiftColors.columnHeaderText;
-  ctx.fillText(ShiftHeaders.timeLeft, currentX + cellWidth / 2, currentY + headerHeight / 2);
-  currentX += cellWidth;
-
-  // 1枠
-  ctx.fillStyle = ShiftColors.slot1HeaderBg;
-  ctx.fillRect(currentX, currentY, cellWidth, headerHeight);
-  ctx.strokeRect(currentX, currentY, cellWidth, headerHeight);
-  ctx.fillStyle = ShiftColors.columnHeaderText;
-  ctx.fillText(ShiftHeaders.slot1, currentX + cellWidth / 2, currentY + headerHeight / 2);
-  currentX += cellWidth;
-
-  // 2-5枠 順不同（4列結合）
-  const mergedWidth = cellWidth * 4;
-  ctx.fillStyle = ShiftColors.slots2to5HeaderBg;
-  ctx.fillRect(currentX, currentY, mergedWidth, headerHeight);
-  ctx.strokeRect(currentX, currentY, mergedWidth, headerHeight);
-  ctx.fillStyle = ShiftColors.columnHeaderText;
-  ctx.fillText(ShiftHeaders.slots2to5, currentX + mergedWidth / 2, currentY + headerHeight / 2);
-  currentX += mergedWidth;
-
-  // 時間（右）
-  ctx.fillStyle = ShiftColors.timeRightHeaderBg;
-  ctx.fillRect(currentX, currentY, cellWidth, headerHeight);
-  ctx.strokeRect(currentX, currentY, cellWidth, headerHeight);
-  ctx.fillStyle = ShiftColors.columnHeaderText;
-  ctx.fillText(ShiftHeaders.timeRight, currentX + cellWidth / 2, currentY + headerHeight / 2);
-
-  currentY += headerHeight;
-
-  // 3. データ行
-  ctx.font = '14px "Japanese", sans-serif';
-
-  // --- ロジック統合: 名寄せとハイライト ---
+  // --- ヘッダー描画 ---
+  // 特別な結合処理: Sup1, Sup2, Sup3 を "2-5枠 順不同" に結合
   
-  // 1. レイアウトから参加者マトリックス（2-5枠）を抽出
-  // layout.columns が null/undefined の場合は空文字で埋める
-  let participantMatrix: string[][] = layouts.map(l => {
-    // 確実に4列にする
-    const cols = l.columns || [];
-    return Array.from({ length: 4 }, (_, i) => (cols[i] || ""));
-  });
+  let currentX = 40; // 左マージン
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = COLORS.border;
 
-  // 2. 名寄せ（整列）を実行
-  const alignedMatrix = alignDuplicateNames(participantMatrix);
+  // 1. Time
+  drawHeaderCell(ctx, '時間', currentX, currentY, ADJUSTED_COL_WIDTHS[0], COLORS.headerTimeBg);
+  currentX += ADJUSTED_COL_WIDTHS[0];
 
-  // レイアウトオブジェクト内のカラムを整列後のものに更新
-  layouts.forEach((layout, i) => {
-    if (!layout.isEmpty) {
-        layout.columns = alignedMatrix[i];
-    }
-  });
+  // 2. Runner
+  drawHeaderCell(ctx, '1枠', currentX, currentY, ADJUSTED_COL_WIDTHS[1], COLORS.headerBg);
+  currentX += ADJUSTED_COL_WIDTHS[1];
 
-  // 3. ハイライト色を計算
-  const emptyRows = layouts.map(l => l.isEmpty);
-  const colorMatrix = assignHighlightColors(alignedMatrix, undefined, emptyRows);
+  // 3. Encore
+  drawHeaderCell(ctx, 'アンコール', currentX, currentY, ADJUSTED_COL_WIDTHS[2], COLORS.headerEncoreBg);
+  currentX += ADJUSTED_COL_WIDTHS[2];
 
-  layouts.forEach((layout, index) => {
-    currentX = 0;
+  // 4,5,6. Support (Combined)
+  const supportWidth = ADJUSTED_COL_WIDTHS[3] + ADJUSTED_COL_WIDTHS[4] + ADJUSTED_COL_WIDTHS[5];
+  drawHeaderCell(ctx, '2-5枠 順不同', currentX, currentY, supportWidth, COLORS.headerSupportBg);
+  currentX += supportWidth;
 
-    if (layout.isEmpty) {
-      // 空き時間の場合
+  // 7. Time
+  drawHeaderCell(ctx, '時間', currentX, currentY, ADJUSTED_COL_WIDTHS[6], COLORS.headerTimeBg);
+  currentX += ADJUSTED_COL_WIDTHS[6];
 
-      // 時間（左）- 白背景
-      ctx.fillStyle = ShiftColors.dataCellBg;
-      ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-      ctx.fillStyle = ShiftColors.dataCellText;
-      ctx.fillText(layout.time, currentX + cellWidth / 2, currentY + cellHeight / 2);
-      ctx.strokeStyle = ShiftColors.border;
-      ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-      currentX += cellWidth;
+  // 8. Standby
+  drawHeaderCell(ctx, '待機', currentX, currentY, ADJUSTED_COL_WIDTHS[7], COLORS.headerTimeBg);
 
-      // 1枠（ランナー）- 白背景
-      ctx.fillStyle = ShiftColors.dataCellBg;
-      ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-      ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-      // ランナー名を表示
-      if (layout.runner) {
-        ctx.fillStyle = ShiftColors.dataCellText;
-        ctx.fillText(layout.runner, currentX + cellWidth / 2, currentY + cellHeight / 2);
-      }
-      currentX += cellWidth;
+  currentY += CONFIG.headerHeight;
 
-      // 2-5枠 - 灰色背景（個別セルで描画）
-      for (let i = 0; i < 4; i++) {
-        ctx.fillStyle = ShiftColors.emptySlotBg;
-        ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-        ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-        currentX += cellWidth;
-      }
+  // --- データ行描画 ---
+  for (const row of layouts) {
+    currentX = 40;
+    const rowH = CONFIG.rowHeight;
 
-      // 時間（右）- 白背景
-      ctx.fillStyle = ShiftColors.dataCellBg;
-      ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-      ctx.fillStyle = ShiftColors.dataCellText;
-      ctx.fillText(layout.time, currentX + cellWidth / 2, currentY + cellHeight / 2);
-      ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-    } else {
-      // 通常のデータ行
-      ctx.fillStyle = ShiftColors.dataCellBg;
+    // データ準備 (8カラム分)
+    const rowData = [
+      row.time,
+      row.runner,
+      row.encore,
+      row.supports[0],
+      row.supports[1],
+      row.supports[2],
+      row.time,
+      row.standby
+    ];
 
-      // 時間（左）
-      ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-      ctx.fillStyle = ShiftColors.dataCellText;
-      ctx.fillText(layout.time, currentX + cellWidth / 2, currentY + cellHeight / 2);
-      ctx.strokeStyle = ShiftColors.border;
-      ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-      currentX += cellWidth;
+    const cellColors = [
+       COLORS.cellTime,
+       COLORS.cellRunner,
+       COLORS.cellEncore,
+       COLORS.cellSupport,
+       COLORS.cellSupport,
+       COLORS.cellSupport,
+       COLORS.cellTime,
+       COLORS.cellStandby
+    ];
 
-      // 1枠（ランナー）
-      ctx.fillStyle = ShiftColors.dataCellBg;
-      ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-      ctx.fillStyle = ShiftColors.dataCellText;
-      ctx.fillText(layout.runner, currentX + cellWidth / 2, currentY + cellHeight / 2);
-      ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-      currentX += cellWidth;
+    for (let i = 0; i < 8; i++) {
+      const w = ADJUSTED_COL_WIDTHS[i];
+      const text = rowData[i] || ''; // nullなら空文字
 
-      // 2-5枠
-      layout.columns.forEach((participant, colIndex) => {
-        // ハイライト色があれば適用、なければデフォルト背景
-        const highlightColor = colorMatrix[index] && colorMatrix[index][colIndex] 
-                               ? colorMatrix[index][colIndex] 
-                               : ShiftColors.dataCellBg;
+      // 背景
+      ctx.fillStyle = cellColors[i];
+      ctx.fillRect(currentX, currentY, w, rowH);
+      ctx.strokeRect(currentX, currentY, w, rowH);
 
-        ctx.fillStyle = highlightColor;
-        ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-        
-        if (participant) {
-          ctx.fillStyle = ShiftColors.dataCellText;
-          ctx.fillText(participant, currentX + cellWidth / 2, currentY + cellHeight / 2);
-        }
-        
-        ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-        currentX += cellWidth;
-      });
+      // テキスト描画 (自動縮小)
+      ctx.fillStyle = COLORS.text;
+      drawFitText(ctx, text, currentX + w / 2, currentY + rowH / 2, w - 10, CONFIG.fontSize);
 
-      // 時間（右）
-      ctx.fillStyle = ShiftColors.dataCellBg;
-      ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
-      ctx.fillStyle = ShiftColors.dataCellText;
-      ctx.fillText(layout.time, currentX + cellWidth / 2, currentY + cellHeight / 2);
-      ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
+      currentX += w;
     }
 
-    currentY += cellHeight;
-  });
+    currentY += rowH;
+  }
 
-  // 外枠を強調
-  ctx.strokeStyle = ShiftColors.borderThick;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(0, 0, canvasWidth, canvasHeight);
-
-  // PNG形式でバッファを返す
   return canvas.toBuffer('image/png');
+}
+
+/**
+ * 枠内に収まるようにテキストを描画する
+ */
+function drawFitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  maxFontSize: number
+) {
+  let fontSize = maxFontSize;
+  ctx.font = `${fontSize}px ${CONFIG.fontFamily}`;
+
+  // 幅が収まるまでフォントサイズを小さくする
+  while (ctx.measureText(text).width > maxWidth && fontSize > 8) {
+    fontSize -= 1;
+    ctx.font = `${fontSize}px ${CONFIG.fontFamily}`;
+  }
+
+  ctx.fillText(text, x, y);
+}
+
+function drawHeaderCell(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  w: number,
+  bg: string
+) {
+  ctx.fillStyle = bg;
+  ctx.fillRect(x, y, w, CONFIG.headerHeight);
+  ctx.strokeRect(x, y, w, CONFIG.headerHeight);
+  ctx.fillStyle = COLORS.text;
+  ctx.font = `bold 18px ${CONFIG.fontFamily}`;
+  ctx.fillText(text, x + w / 2, y + CONFIG.headerHeight / 2);
 }

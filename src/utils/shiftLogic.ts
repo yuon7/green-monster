@@ -142,7 +142,7 @@ export function assignHighlightColors(
   );
 
   const highlightColors = [
-    "#FFDDC1", "#FFFFCC", "#D4F1F4", "#F0E6FF", "#FFD1DC",
+     "#FFFFCC", "#D4F1F4", "#F0E6FF", "#FFD1DC",
     "#D9EAD3", "#C9DAF8", "#FFECB3", "#E1E0FF", "#FADADD",
     "#D0F0C0", "#BCE4E8", "#F5CBA7", "#FFFACD", "#CFE2F3",
     "#EAD1DC", "#FFE5CC", "#E0FFFF", "#DAE8FC", "#FCE6C9",

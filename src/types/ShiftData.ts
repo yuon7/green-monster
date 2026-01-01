@@ -40,8 +40,12 @@ export interface ColumnLayout {
   time: string;
   /** ランナー名 */
   runner: string;
-  /** 各列の参加者（最大4列） */
-  columns: (string | null)[];
+  /** アンコール枠 */
+  encore: string | null;
+  /** 支援枠（3枠） */
+  supports: (string | null)[];
+  /** 待機枠 */
+  standby: string | null;
   /** 空き枠かどうか */
   isEmpty: boolean;
 }
