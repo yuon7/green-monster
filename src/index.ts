@@ -11,6 +11,18 @@ import express from 'express';
 async function main() {
   console.log('🤖 Discord Bot を起動しています...\n');
 
+  // Railway Health Check Server (最優先で起動)
+  const app = express();
+  const port = process.env.PORT || 3000;
+
+  app.get('/', (req, res) => {
+    res.send('Reaction Bot is running! 🤖');
+  });
+
+  app.listen(port, () => {
+    console.log(`🌍 Health Check Server is running on port ${port}`);
+  });
+
   // Clientの作成
   const client = new ExtendedClient({
     intents: [
@@ -39,18 +51,6 @@ async function main() {
   process.on('uncaughtException', error => {
     console.error('🚨 キャッチされていない例外:', error);
     process.exit(1);
-  });
-
-  // Railway Health Check Server
-  const app = express();
-  const port = process.env.PORT || 3000;
-
-  app.get('/', (req, res) => {
-    res.send('Reaction Bot is running! 🤖');
-  });
-
-  app.listen(port, () => {
-    console.log(`🌍 Health Check Server is running on port ${port}`);
   });
 }
 
