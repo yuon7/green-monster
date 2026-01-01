@@ -24,9 +24,12 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@napi-rs/canvas": "^0.1.59",
+    "@supabase/supabase-js": "^2.89.0",
     "discord.js": "^14.25.1",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "openai": "^6.15.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
