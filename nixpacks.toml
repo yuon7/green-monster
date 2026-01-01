@@ -1,2 +1,2 @@
 [phases.setup]
-nixPkgs = ["nodejs", "npm", "fontconfig"]
+nixPkgs = ["fontconfig"]
