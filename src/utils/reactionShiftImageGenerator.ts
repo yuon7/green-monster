@@ -27,7 +27,7 @@ const CONFIG = {
   rowHeight: 40,
   headerHeight: 60,
   fontSize: 20,
-  fontFamily: 'NotoSansCJK, sans-serif',
+  fontFamily: '"Noto Sans CJK JP", sans-serif',
 };
 
 // カラム幅設定

@@ -68,7 +68,7 @@ const CONFIG = {
   rowHeight: 40,
   headerHeight: 60,
   fontSize: 20,
-  fontFamily: 'NotoSansJP, sans-serif', // フォント優先順位
+  fontFamily: '"Noto Sans CJK JP", sans-serif', // フォント優先順位
 };
 
 // カラム幅調整
