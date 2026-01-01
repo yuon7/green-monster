@@ -3,8 +3,10 @@ import { ColumnLayout } from '@/types';
 import path from 'path';
 
 // フォント登録 (日本語対応)
+// フォント登録 (日本語対応)
 try {
-  GlobalFonts.registerFromPath('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', 'NotoSansCJK');
+  const fontPath = path.join(__dirname, '../assets/fonts/NotoSansJP-Regular.otf');
+  GlobalFonts.registerFromPath(fontPath, 'NotoSansJP');
 } catch (e) {
   console.warn('Font registration failed:', e);
 }
@@ -31,7 +33,7 @@ const CONFIG = {
   rowHeight: 40,
   headerHeight: 60,
   fontSize: 20,
-  fontFamily: 'NotoSansCJK, sans-serif', // フォント優先順位
+  fontFamily: 'NotoSansJP, sans-serif', // フォント優先順位
 };
 
 // カラム幅調整
