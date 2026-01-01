@@ -1,12 +1,16 @@
-import { Client, Collection, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, ChatInputCommandInteraction } from 'discord.js';
+
+import { Client, Collection, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, ChatInputCommandInteraction, ButtonInteraction, ModalSubmitInteraction, StringSelectMenuInteraction } from 'discord.js';
 
 /**
  * コマンドインターフェース
  * すべてのコマンドファイルがこの型に従う
  */
 export interface Command {
-  data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder;
+  data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder;
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+  handleButton?: (interaction: ButtonInteraction) => Promise<void>;
+  handleModal?: (interaction: ModalSubmitInteraction) => Promise<void>;
+  handleStringSelect?: (interaction: StringSelectMenuInteraction) => Promise<void>;
 }
 
 /**
