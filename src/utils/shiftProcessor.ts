@@ -23,8 +23,24 @@ export function arrangeColumns(slots: TimeSlot[]): ColumnLayout[] {
     const columns: (string | null)[] = [null, null, null, null];
     const assigned = new Set<string>();
 
-    // リアクション時刻順でソート
+    // 前の列の参加者を取得
+    const prevLayout = layouts[layouts.length - 1];
+    const prevParticipants = new Set<string>();
+    if (prevLayout) {
+      if (prevLayout.encore) prevParticipants.add(prevLayout.encore);
+      prevLayout.supports.forEach(s => {
+        if (s) prevParticipants.add(s);
+      });
+    }
+
+    // リアクション時刻順でソート（ただし、前の列にいた人を優先）
     const sortedParticipants = slot.participants.sort((a, b) => {
+      const inPrevA = prevParticipants.has(a);
+      const inPrevB = prevParticipants.has(b);
+
+      if (inPrevA && !inPrevB) return -1;
+      if (!inPrevA && inPrevB) return 1;
+
       const timeA = slot.reactionTimes.get(a) || 0;
       const timeB = slot.reactionTimes.get(b) || 0;
       return timeA - timeB;
