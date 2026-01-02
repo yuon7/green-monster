@@ -71,7 +71,8 @@ export function parseTimeRange(timeString: string): { start: number; end: number
   const start = parseInt(match[1], 10);
   const end = parseInt(match[2], 10);
 
-  if (start < 0 || start > 23 || end < 0 || end > 24 || start >= end) {
+  // 30h system support: allow up to 33 (e.g. 9AM next day if needed, but 30 is the main target)
+  if (start < 0 || start > 33 || end < 0 || end > 34 || start >= end) {
     return null;
   }
 

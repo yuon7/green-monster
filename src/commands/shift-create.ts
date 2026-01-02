@@ -64,6 +64,13 @@ const shiftCreate: Command = {
 
         if (!timeRange) continue;
 
+        let { start, end } = timeRange;
+        // 30時間制対応: 0-6時は24-30時として扱う
+        if (start < 6) {
+          start += 24;
+          end += 24;
+        }
+
         // ランナー（投稿者）のサーバー表示名を取得
         const runnerMember = await interaction.guild?.members.fetch(message.author.id);
         const runner = runnerMember?.displayName || message.author.username;
@@ -107,9 +114,9 @@ const shiftCreate: Command = {
         }
 
         timeSlots.push({
-          time: `${timeRange.start}-${timeRange.end}`,
-          startHour: timeRange.start,
-          endHour: timeRange.end,
+          time: `${start}-${end}`,
+          startHour: start,
+          endHour: end,
           runner,
           participants,
           emoji: targetEmoji,
