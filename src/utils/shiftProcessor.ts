@@ -138,12 +138,13 @@ export function fillEmptySlots(layouts: ColumnLayout[]): ColumnLayout[] {
       // 前後のランナー情報を取得
       let runner = '';
       
-      // 直前の時間帯からランナーを取得
-      const prevTimeKey = `${hour - 1}-${hour}`;
-      if (timeMap.has(prevTimeKey)) {
-        runner = timeMap.get(prevTimeKey)!.runner;
-      } else {
-        // 直後の時間帯からランナーを取得
+      // 直前の時間帯からランナーを取得 (生成済みの結果から参照して連続性を保つ)
+      if (result.length > 0) {
+        runner = result[result.length - 1].runner;
+      }
+      
+      // ランナーが決まらなかった場合のみ、直後の時間帯をチェック (開始時など)
+      if (!runner) {
         const nextTimeKey = `${hour + 1}-${hour + 2}`;
         if (timeMap.has(nextTimeKey)) {
           runner = timeMap.get(nextTimeKey)!.runner;
