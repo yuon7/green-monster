@@ -27,7 +27,7 @@ const CONFIG = {
   rowHeight: 40,
   headerHeight: 60,
   fontSize: 20,
-  fontFamily: '"Noto Sans CJK JP", sans-serif',
+  fontFamily: '"Noto Sans CJK JP", sans-serif, "Noto Color Emoji"',
 };
 
 // カラム幅設定
