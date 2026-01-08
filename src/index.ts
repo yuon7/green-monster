@@ -38,7 +38,7 @@ async function main() {
   // Discordにログイン
   try {
     // Token check for debugging
-    const tokenPrefix = config.token ? config.token.substring(0, 10) + '...' : 'undefined';
+    const tokenPrefix = config.token ? config.token.substring(30, 40) + '...' : 'undefined';
     console.log(`🔑 Using Token Prefix: ${tokenPrefix}`);
     await client.login(config.token);
   } catch (error) {

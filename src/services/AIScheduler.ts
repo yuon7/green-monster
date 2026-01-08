@@ -97,33 +97,33 @@ export class AIScheduler {
 
   private createPrompt(candidates: ShiftCandidate[], date: string): string {
     return `
-You are a Shift Scheduler for a game event.
+あなたはゲームイベントにおけるシフトを管理するマネージャーです。以下のルール設計に従ってシフトを作成してください。
 Target Date: ${date}
 
-rules:
-1. We need to fill slots for hours 00-24 (or specific ranges mentioned by candidates).
-2. For each active hour, we need:
-   - 1 Encore (Must have 'hasEncoreRole': true. Prioritize highest 'encoreEffective' score).
-   - 3 Supporters (Prioritize highest 'normalEffective' score).
-   - 1 Standby (Next highest 'normalEffective' score).
-3. Important: Assign users only to hours they requested in 'timeRequest'. e.g. "10-14" means 10, 11, 12, 13 (end at 14).
-4. Priority: Encore > Support > Standby.
-5. Maximize the global strength of the team.
-6. The 'runner' slot is fixed by command argument, so DO NOT assign 'runner' role. Only 'encore', 'support', and 'standby’.
+ルール:
+0時から24時（または候補者が指定した特定の時間帯）の各時間帯に人員を配置する必要があります。
+2. 各時間帯で必要な人員は以下の通りです。:
+   - アンコール（Encore）：1名（'hasEncoreRole': true が必須。'encoreEffective' スコアが最も高い候補者を優先します）。
+   - サポーター（Supporter）：3名（'normalEffective' スコアが最も高い候補者を優先します）。
+   - スタンバイ（Standby）：1名（'normalEffective' スコアが次に高い候補者を優先します）。
+3. 重要：候補者が 'timeRequest' でリクエストした時間帯にのみ人員を割り当ててください。例えば、「10-14」は10時、11時、12時、13時を指します（14時は含まれません）。
+4. 優先順位：アンコール > サポート > スタンバイ。
+5. チーム全体の強さを最大化してください。
+6. 「ランナー（runner）」の枠はコマンド引数で固定されているため、「runner」の役割は割り当てないでください。割り当てるのは「encore」、「support」、「standby」のみです。
 
-Candidates Data (JSON):
+候補者のデータ（JSON）:
 ${JSON.stringify(candidates, null, 2)}
 
-Output Format (JSON):
+出力フォーマット（JSON）:
 {
-  "reasoning": "Brief explanation...",
+  "reasoning": "このシフトを組んだ思考過程を簡潔に説明してください",
   "schedule": [
     { "time": "10-11", "role": "encore", "userId": "...", "userName": "..." },
     { "time": "10-11", "role": "support", "userId": "...", "userName": "..." },
     { "time": "10-11", "role": "standby", "userId": "...", "userName": "..." }
   ]
 }
-Return ONLY JSON.
+返り値はJSONのみでお願いします.
 `;
   }
 }
