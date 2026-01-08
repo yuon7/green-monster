@@ -1,8 +1,8 @@
 import { createCanvas, GlobalFonts, CanvasRenderingContext2D } from '@napi-rs/canvas';
 import { ColumnLayout } from '@/types';
 import path from 'path';
+import { drawTextWithTwemoji } from './twemojiRenderer';
 
-// フォント登録 (日本語対応)
 // フォント登録 (日本語対応)
 try {
   // 複数のパス候補を試す (ローカル開発環境 vs ビルド後環境)
@@ -31,19 +31,16 @@ try {
       
       if (registeredCount > 0) {
         console.log(`[Font] Successfully registered ${registeredCount} fonts from ${dirPath}`);
-        // 登録されているフォントファミリー名を全てログに出力して確認
-        const families = GlobalFonts.families;
-        console.log('[Font] Available Font Families:', JSON.stringify(families.map(f => f.family)));
         break; // 1つのディレクトリから読み込めればOK
       }
     }
   }
 
   if (registeredCount === 0) {
-    console.error(`[Font] FAILED to find any font files. Searched in:`, pathsToTry);
+    console.warn(`[Font] FAILED to find any font files in standard paths.`);
   }
 } catch (e) {
-  console.error('[Font] Font registration CRITICAL failure:', e);
+  console.error('[Font] Font registration failure:', e);
 }
 
 // 色定義
@@ -68,7 +65,7 @@ const CONFIG = {
   rowHeight: 40,
   headerHeight: 60,
   fontSize: 20,
-  fontFamily: '"Noto Sans CJK JP", sans-serif, "Noto Color Emoji"', // フォント優先順位
+  fontFamily: '"Noto Sans CJK JP", sans-serif', // Emoji font removed
 };
 
 // カラム幅調整
@@ -77,7 +74,7 @@ const ADJUSTED_COL_WIDTHS = [
   160, // Runner
   160, // Encore
   160, // Sup1
-  160, // Sup2
+  80,  // Sup2
   160, // Sup3
   80,  // Time
   160  // Standby
@@ -103,7 +100,7 @@ export async function generateShiftImage(
   ctx.fillStyle = COLORS.text;
 
   // タイトル描画
-  ctx.fillText(title, width / 2, 30);
+  await drawTextWithTwemoji(ctx, title, width / 2, 30, width - 80, 24, CONFIG.fontFamily);
 
   // テーブル開始位置
   const startY = 50;
@@ -117,28 +114,28 @@ export async function generateShiftImage(
   ctx.strokeStyle = COLORS.border;
 
   // 1. Time
-  drawHeaderCell(ctx, '時間', currentX, currentY, ADJUSTED_COL_WIDTHS[0], COLORS.headerTimeBg);
+  await drawHeaderCell(ctx, '時間', currentX, currentY, ADJUSTED_COL_WIDTHS[0], COLORS.headerTimeBg);
   currentX += ADJUSTED_COL_WIDTHS[0];
 
   // 2. Runner
-  drawHeaderCell(ctx, '1枠', currentX, currentY, ADJUSTED_COL_WIDTHS[1], COLORS.headerBg);
+  await drawHeaderCell(ctx, '1枠', currentX, currentY, ADJUSTED_COL_WIDTHS[1], COLORS.headerBg);
   currentX += ADJUSTED_COL_WIDTHS[1];
 
   // 3. Encore
-  drawHeaderCell(ctx, 'アンコール', currentX, currentY, ADJUSTED_COL_WIDTHS[2], COLORS.headerEncoreBg);
+  await drawHeaderCell(ctx, 'アンコール', currentX, currentY, ADJUSTED_COL_WIDTHS[2], COLORS.headerEncoreBg);
   currentX += ADJUSTED_COL_WIDTHS[2];
 
   // 4,5,6. Support (Combined)
   const supportWidth = ADJUSTED_COL_WIDTHS[3] + ADJUSTED_COL_WIDTHS[4] + ADJUSTED_COL_WIDTHS[5];
-  drawHeaderCell(ctx, '2-5枠 順不同', currentX, currentY, supportWidth, COLORS.headerSupportBg);
+  await drawHeaderCell(ctx, '2-5枠 順不同', currentX, currentY, supportWidth, COLORS.headerSupportBg);
   currentX += supportWidth;
 
   // 7. Time
-  drawHeaderCell(ctx, '時間', currentX, currentY, ADJUSTED_COL_WIDTHS[6], COLORS.headerTimeBg);
+  await drawHeaderCell(ctx, '時間', currentX, currentY, ADJUSTED_COL_WIDTHS[6], COLORS.headerTimeBg);
   currentX += ADJUSTED_COL_WIDTHS[6];
 
   // 8. Standby
-  drawHeaderCell(ctx, '待機', currentX, currentY, ADJUSTED_COL_WIDTHS[7], COLORS.headerTimeBg);
+  await drawHeaderCell(ctx, '待機', currentX, currentY, ADJUSTED_COL_WIDTHS[7], COLORS.headerTimeBg);
 
   currentY += CONFIG.headerHeight;
 
@@ -181,7 +178,7 @@ export async function generateShiftImage(
 
       // テキスト描画 (自動縮小)
       ctx.fillStyle = COLORS.text;
-      drawFitText(ctx, text, currentX + w / 2, currentY + rowH / 2, w - 10, CONFIG.fontSize);
+      await drawTextWithTwemoji(ctx, text, currentX + w / 2, currentY + rowH / 2, w - 10, CONFIG.fontSize, CONFIG.fontFamily);
 
       currentX += w;
     }
@@ -192,30 +189,7 @@ export async function generateShiftImage(
   return canvas.toBuffer('image/png');
 }
 
-/**
- * 枠内に収まるようにテキストを描画する
- */
-function drawFitText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  maxFontSize: number
-) {
-  let fontSize = maxFontSize;
-  ctx.font = `${fontSize}px ${CONFIG.fontFamily}`;
-
-  // 幅が収まるまでフォントサイズを小さくする
-  while (ctx.measureText(text).width > maxWidth && fontSize > 8) {
-    fontSize -= 1;
-    ctx.font = `${fontSize}px ${CONFIG.fontFamily}`;
-  }
-
-  ctx.fillText(text, x, y);
-}
-
-function drawHeaderCell(
+async function drawHeaderCell(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -227,6 +201,7 @@ function drawHeaderCell(
   ctx.fillRect(x, y, w, CONFIG.headerHeight);
   ctx.strokeRect(x, y, w, CONFIG.headerHeight);
   ctx.fillStyle = COLORS.text;
-  ctx.font = `bold 18px ${CONFIG.fontFamily}`;
-  ctx.fillText(text, x + w / 2, y + CONFIG.headerHeight / 2);
+  // ctx.font = `bold 18px ${CONFIG.fontFamily}`;
+  // Using generic sans-serif bold for header
+  await drawTextWithTwemoji(ctx, text, x + w / 2, y + CONFIG.headerHeight / 2, w - 10, 18, CONFIG.fontFamily);
 }

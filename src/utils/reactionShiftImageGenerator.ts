@@ -1,5 +1,6 @@
 import { createCanvas, GlobalFonts, CanvasRenderingContext2D } from '@napi-rs/canvas';
 import { ColumnLayout } from '@/types';
+import { drawTextWithTwemoji } from './twemojiRenderer';
 
 // フォント登録 (日本語対応)
 try {
@@ -27,7 +28,7 @@ const CONFIG = {
   rowHeight: 40,
   headerHeight: 60,
   fontSize: 20,
-  fontFamily: '"Noto Sans CJK JP", sans-serif, "Noto Color Emoji"',
+  fontFamily: '"Noto Sans CJK JP", sans-serif', // Remove emoji fonts as we use images
 };
 
 // カラム幅設定
@@ -61,7 +62,7 @@ export async function generateReactionShiftImage(
   ctx.fillStyle = COLORS.text;
 
   // タイトル描画
-  ctx.fillText(title, drawingWidth / 2, 30);
+  await drawTextWithTwemoji(ctx, title, drawingWidth / 2, 30, drawingWidth - 80, 24, CONFIG.fontFamily);
 
   // テーブル開始位置
   const startY = 50;
@@ -73,25 +74,26 @@ export async function generateReactionShiftImage(
   ctx.strokeStyle = COLORS.border;
 
   // 1. Time (Left)
-  drawHeaderCell(ctx, '時間', currentX, currentY, COL_WIDTHS.time, COLORS.headerTimeBg);
+  await drawHeaderCell(ctx, '時間', currentX, currentY, COL_WIDTHS.time, COLORS.headerTimeBg);
   currentX += COL_WIDTHS.time;
 
   // 2. Runner
-  drawHeaderCell(ctx, '1枠', currentX, currentY, COL_WIDTHS.runner, COLORS.headerBg);
+  await drawHeaderCell(ctx, '1枠', currentX, currentY, COL_WIDTHS.runner, COLORS.headerBg);
   currentX += COL_WIDTHS.runner;
 
   // 3-6. Members (Combined Header)
   const membersWidth = COL_WIDTHS.member * 4;
-  drawHeaderCell(ctx, '2-5枠 順不同', currentX, currentY, membersWidth, COLORS.headerSupportBg);
+  await drawHeaderCell(ctx, '2-5枠 順不同', currentX, currentY, membersWidth, COLORS.headerSupportBg);
   currentX += membersWidth;
 
   // 7. Time (Right)
-  drawHeaderCell(ctx, '時間', currentX, currentY, COL_WIDTHS.time, COLORS.headerTimeBg);
+  await drawHeaderCell(ctx, '時間', currentX, currentY, COL_WIDTHS.time, COLORS.headerTimeBg);
   
   currentY += CONFIG.headerHeight;
 
   // --- データ行描画 ---
-  layouts.forEach((row, rowIndex) => {
+  for (let rowIndex = 0; rowIndex < layouts.length; rowIndex++) {
+    const row = layouts[rowIndex];
     currentX = 40;
     const rowH = CONFIG.rowHeight;
 
@@ -109,7 +111,7 @@ export async function generateReactionShiftImage(
     const rowColors = highlightColors ? highlightColors[rowIndex] : [];
 
     // --- 1. Time (Left) ---
-    drawCell(ctx, row.time, currentX, currentY, COL_WIDTHS.time, row.isEmpty ? '#D3D3D3' : COLORS.cellTime);
+    await drawCell(ctx, row.time, currentX, currentY, COL_WIDTHS.time, row.isEmpty ? '#D3D3D3' : COLORS.cellTime);
     currentX += COL_WIDTHS.time;
 
     // --- 2. Runner ---
@@ -118,51 +120,30 @@ export async function generateReactionShiftImage(
     if (row.isEmpty) runnerBg = '#D3D3D3';
     else if (rowColors && rowColors[0]) runnerBg = rowColors[0];
     
-    drawCell(ctx, row.runner, currentX, currentY, COL_WIDTHS.runner, runnerBg);
+    await drawCell(ctx, row.runner, currentX, currentY, COL_WIDTHS.runner, runnerBg);
     currentX += COL_WIDTHS.runner;
 
     // --- 3-6. Members ---
-    members.forEach((member, i) => {
+    for (let i = 0; i < members.length; i++) {
+      const member = members[i];
       let memberBg = COLORS.cellSupport;
       if (row.isEmpty) memberBg = '#D3D3D3';
       else if (rowColors && rowColors[i + 1]) memberBg = rowColors[i + 1];
 
-      drawCell(ctx, member, currentX, currentY, COL_WIDTHS.member, memberBg);
+      await drawCell(ctx, member, currentX, currentY, COL_WIDTHS.member, memberBg);
       currentX += COL_WIDTHS.member;
-    });
+    }
 
     // --- 7. Time (Right) ---
-    drawCell(ctx, row.time, currentX, currentY, COL_WIDTHS.time, row.isEmpty ? '#D3D3D3' : COLORS.cellTime);
+    await drawCell(ctx, row.time, currentX, currentY, COL_WIDTHS.time, row.isEmpty ? '#D3D3D3' : COLORS.cellTime);
     
     currentY += rowH;
-  });
+  }
 
   return canvas.toBuffer('image/png');
 }
 
-function drawFitText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  maxFontSize: number
-) {
-  if (!text) return;
-
-  let fontSize = maxFontSize;
-  ctx.font = `${fontSize}px ${CONFIG.fontFamily}`;
-
-  // 幅が収まるまでフォントサイズを小さくする
-  while (ctx.measureText(text).width > maxWidth && fontSize > 8) {
-    fontSize -= 1;
-    ctx.font = `${fontSize}px ${CONFIG.fontFamily}`;
-  }
-
-  ctx.fillText(text, x, y);
-}
-
-function drawHeaderCell(
+async function drawHeaderCell(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -175,11 +156,20 @@ function drawHeaderCell(
   ctx.strokeRect(x, y, w, CONFIG.headerHeight);
   
   ctx.fillStyle = COLORS.text;
-  ctx.font = `bold 18px ${CONFIG.fontFamily}`;
-  ctx.fillText(text, x + w / 2, y + CONFIG.headerHeight / 2);
+  // ctx.font = `bold 18px ${CONFIG.fontFamily}`; // handled inside drawTextWithTwemoji
+  
+  // Header text is usually bold, so we might want to pass bold font family or handle it
+  // Since we pass fontFamily, let's just make sure it's consistent.
+  // We can pass `bold 18px ...` logic effectively by handling it in the renderer or just using default.
+  // For simplicity, we use the util which sets font size. Boldness is part of font string usually.
+  // The util takes fontFamily. We can pass "bold san-serif" etc.
+  
+  // Note: drawTextWithTwemoji sets font as `${fontSize}px ${fontFamily}`.
+  // So we should pass "bold <family>" as the family argument if we want bold.
+  await drawTextWithTwemoji(ctx, text, x + w / 2, y + CONFIG.headerHeight / 2, w - 10, 18, CONFIG.fontFamily); 
 }
 
-function drawCell(
+async function drawCell(
   ctx: CanvasRenderingContext2D,
   text: string | null | undefined,
   x: number,
@@ -193,6 +183,7 @@ function drawCell(
   
   if (text) {
     ctx.fillStyle = COLORS.text;
-    drawFitText(ctx, text, x + w / 2, y + CONFIG.rowHeight / 2, w - 10, CONFIG.fontSize);
+    await drawTextWithTwemoji(ctx, text, x + w / 2, y + CONFIG.rowHeight / 2, w - 10, CONFIG.fontSize, CONFIG.fontFamily);
   }
 }
+
